@@ -7,3 +7,6 @@ profile.tmp
 
 # temp files
 *.~
+
+# bag files
+*.bag
