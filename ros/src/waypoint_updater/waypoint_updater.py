@@ -3,8 +3,8 @@
 import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
-from std_msgs import Int32
-
+from std_msgs.msg import Int32
+import tf
 
 import math
 
@@ -28,7 +28,7 @@ LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this n
 
 class WaypointUpdater(object):
     def __init__(self):
-        rospy.init_node('waypoint_updater')
+        rospy.init_node('waypoint_updater', log_level=rospy.DEBUG)
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
@@ -39,14 +39,78 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
-
+        self.pose = None
+        self.base_waypoints = None
+        self.seq_num = 0
         rospy.spin()
+
+    def find_closest_waypoint(self):
+        """TODO: Docstring for find_closest_waypoint.
+        :returns: TODO
+
+        """
+        closest_waypoint_distance = 100000;
+        closest_waypoint_idx = 0
+        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
+
+        for i in range(len(self.base_waypoints)):
+            dist = dl(self.pose.position, self.base_waypoints[i].pose.pose.position)
+            if dist < closest_waypoint_distance:
+                closest_waypoint_idx = i
+                closest_waypoint_distance = dist
+
+        return closest_waypoint_idx
+
+    def find_next_waypoint(self):
+        """Find index of closest waypoint
+        :returns: index (Int32)
+        """
+        closest_waypoint_idx = self.find_closest_waypoint()
+        closest_waypoint = self.base_waypoints[closest_waypoint_idx]
+
+        rospy.logdebug("next waypoint idx: %d", closest_waypoint_idx)
+        theta = math.atan2(closest_waypoint.pose.pose.position.y-self.pose.position.y, closest_waypoint.pose.pose.position.x-self.pose.position.x)
+        quaternion = (self.pose.orientation.w, self.pose.orientation.x, self.pose.orientation.y, self.pose.orientation.z)
+        euler_angles = tf.transformations.euler_from_quaternion(quaternion)
+        yaw_angle = euler_angles[2]
+
+        if (math.fabs(theta - yaw_angle) > math.pi/4):
+            closest_waypoint_idx += 1
+
+
+        return closest_waypoint_idx
+
+    def update_final_waypoints(self):
+        """Prepare and publish final waypoints
+
+        """
+        if self.base_waypoints is not None:
+            base_waypoints_len = len(self.base_waypoints)
+            next_waypoint_idx = self.find_next_waypoint()
+            final_waypoints = []
+            for index in range(next_waypoint_idx, next_waypoint_idx + LOOKAHEAD_WPS):
+                final_waypoints.append(self.base_waypoints[index%base_waypoints_len])
+
+            msg = Lane()
+            msg.header.seq = self.seq_num
+            msg.header.stamp = rospy.Time.now()
+            # msg.header.frame_id = ''
+            msg.waypoints = final_waypoints
+
+            #rospy.logdebug("next waypoint idx: %d", next_waypoint_idx)
+            self.final_waypoints_pub.publish(msg)
+        pass
 
     def pose_cb(self, msg):
         # TODO: Implement
+        self.seq_num = msg.header.seq
+        self.pose = msg.pose
+        self.update_final_waypoints()
         pass
 
     def waypoints_cb(self, waypoints):
+        self.base_waypoints = waypoints.waypoints
+        rospy.logdebug("Base waypoints received: %d", len(self.base_waypoints))
         # TODO: Implement
         pass
 
