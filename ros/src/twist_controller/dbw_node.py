@@ -45,7 +45,10 @@ class DBWNode(object):
         steer_ratio = rospy.get_param('~steer_ratio', 14.8)
         max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
+
         min_speed = rospy.get_param('~min_speed', 0.0)
+
+        self.control_rate = rospy.get_param('~control_rate', 50.)
 
         self.steer_pub = rospy.Publisher('/vehicle/steering_cmd',
                                          SteeringCmd, queue_size=1)
@@ -76,15 +79,17 @@ class DBWNode(object):
         self.loop()
 
     def loop(self):
-        rate = rospy.Rate(50) # 50Hz
+        rate = rospy.Rate(int(self.control_rate)) # 50Hz
         while not rospy.is_shutdown():
             # TODO: Get predicted throttle, brake, and steering using `twist_controller`
             # You should only publish the control commands if dbw is enabled
             throttle, brake, steering = self.controller.control(self.target_linear_velocity,
                                                                 self.target_angular_velocity,
                                                                 self.current_linear_velocity,
+                                                                self.current_angular_velocity,
+                                                                self.control_rate,
                                                                 self.dbw_is_enabled)
-            # rospy.logdebug("%r -- throttle: %f | brake: %f | steering: %f",self.dbw_is_enabled, throttle, brake, steering)
+            rospy.logdebug("%r -- throttle: %f | brake: %f | steering: %f",self.dbw_is_enabled, throttle, brake, steering)
             if self.dbw_is_enabled:
                self.publish(throttle, brake, steering)
             rate.sleep()
@@ -106,7 +111,7 @@ class DBWNode(object):
         bcmd.pedal_cmd_type = BrakeCmd.CMD_TORQUE
         bcmd.pedal_cmd = brake
         self.brake_pub.publish(bcmd)
-        
+
     def twist_cb(self, twist_msg):
         """TODO: Docstring for function.
 
