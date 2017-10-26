@@ -7,7 +7,7 @@ profile.tmp
 
 # temp files
 *.~
-*.swp 
+.*.swp 
 
 # bag files
 *.bag
