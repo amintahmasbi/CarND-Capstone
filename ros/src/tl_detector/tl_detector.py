@@ -8,6 +8,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from light_classification.tl_classifier import TLClassifier
 import tf
+import math
 import cv2
 import yaml
 
@@ -16,7 +17,7 @@ STATE_COUNT_THRESHOLD = 3
 
 class TLDetector(object):
     def __init__(self):
-        rospy.init_node('tl_detector')
+        rospy.init_node('tl_detector', log_level = rospy.DEBUG)
 
         self.pose = None
         self.waypoints = None
@@ -101,8 +102,31 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-        #TODO implement
-        return 0
+
+        closest_waypoint_distance = 100000
+        closest_waypoint_idx = 0
+
+        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
+
+        for i in range(len(self.waypoints.waypoints)):
+            dist = dl(pose.position, self.waypoints.waypoints[i].pose.pose.position)
+            if dist < closest_waypoint_distance:
+                closest_waypoint_idx = i
+                closest_waypoint_distance = dist
+
+        closest_waypoint = self.waypoints.waypoints[closest_waypoint_idx]
+
+        # rospy.logdebug("next waypoint idx: %d", closest_waypoint_idx)
+        theta = math.atan2(closest_waypoint.pose.pose.position.y-pose.position.y, closest_waypoint.pose.pose.position.x-pose.position.x)
+        quaternion = (pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z)
+        euler_angles = tf.transformations.euler_from_quaternion(quaternion)
+        yaw_angle = euler_angles[2]
+
+        if (math.fabs(theta - yaw_angle) > math.pi/4):
+            closest_waypoint_idx += 1
+
+
+        return closest_waypoint_idx
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
@@ -136,16 +160,50 @@ class TLDetector(object):
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
-        if(self.pose):
-            car_position = self.get_closest_waypoint(self.pose.pose)
+        if self.waypoints:
+            if(self.pose):
+                car_position = self.get_closest_waypoint(self.pose.pose)
 
-        #TODO find the closest visible traffic light (if one exists)
+            closest_light = 100000
+            camera_sensing_range = 200
+            light_index = -1
+            #TODO find the closest visible traffic light (if one exists)
+            for idx, light_item in enumerate(self.lights):
 
-        if light:
-            state = self.get_light_state(light)
-            return light_wp, state
-        self.waypoints = None
+                light_position = self.get_closest_waypoint(light_item.pose.pose)
+                if car_position <= light_position:
+                    dist = self.distance(self.waypoints.waypoints, car_position, light_position)
+                else:
+                    dist = self.distance(self.waypoints.waypoints, light_position, car_position)
+                    dist = len(self.waypoints.waypoints) - dist
+
+                # rospy.logdebug("next light distance: %d | %d | %d", car_position, light_position, int(dist))
+                if dist <= camera_sensing_range:
+                    closest_light = dist
+                    light = light_item
+                    light_index = idx
+
+            if light:
+                state = self.get_light_state(light)
+
+                stop_line = Pose()
+                stop_line.position.x = stop_line_positions[light_index][0]
+                stop_line.position.y = stop_line_positions[light_index][1]
+                stop_line.position.z = 0
+                line_position = self.get_closest_waypoint(stop_line)
+                # rospy.logdebug("Next light : %d --> %d ", car_position, line_position)
+                rospy.logdebug("Light status: %d ", int(state))
+                return line_position, state
+
         return -1, TrafficLight.UNKNOWN
+
+    def distance(self, waypoints, wp1, wp2):
+        dist = 0
+        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
+        for i in range(wp1, wp2+1):
+            dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
+            wp1 = i
+        return dist
 
 if __name__ == '__main__':
     try:

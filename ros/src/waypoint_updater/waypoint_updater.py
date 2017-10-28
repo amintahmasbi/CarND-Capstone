@@ -68,7 +68,7 @@ class WaypointUpdater(object):
         closest_waypoint_idx = self.find_closest_waypoint()
         closest_waypoint = self.base_waypoints[closest_waypoint_idx]
 
-        rospy.logdebug("next waypoint idx: %d", closest_waypoint_idx)
+        # rospy.logdebug("next waypoint idx: %d", closest_waypoint_idx)
         theta = math.atan2(closest_waypoint.pose.pose.position.y-self.pose.position.y, closest_waypoint.pose.pose.position.x-self.pose.position.x)
         quaternion = (self.pose.orientation.w, self.pose.orientation.x, self.pose.orientation.y, self.pose.orientation.z)
         euler_angles = tf.transformations.euler_from_quaternion(quaternion)
