@@ -22,8 +22,8 @@ class TLClassifier(object):
     UPPER_RED = [255, 56, 50] #RGB
 
     def __init__(self):
-        #TODO load classifier
-        # This is needed since the notebook is stored in the object_detection folder.
+        # Load classifier
+        # This is needed since the model is stored in the current folder.
         sys.path.append(".")
         # print(sys.path)
 
@@ -127,7 +127,7 @@ class TLClassifier(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        #TODO implement light color prediction
+        # Implement light color prediction
         # Actual detection.
         image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
 
@@ -153,7 +153,7 @@ class TLClassifier(object):
         box_coords = self.to_image_coords(boxes, height, width)
 
         color_state = TrafficLight.UNKNOWN
-        masked_image = np.squeeze(image_np)
+        # masked_image = np.squeeze(image_np)
 
         for idx, detected_item in enumerate(classes):
             if detected_item == 10:
@@ -162,10 +162,12 @@ class TLClassifier(object):
                 sqeezed_image = np.squeeze(image_np)
                 # rospy.logdebug(box)
                 cropped_image = sqeezed_image[ box[0]:box[2], box[1]:box[3], :]
-                color_state, masked_image = self.get_color(cropped_image)
+                # color_state, masked_image = self.get_color(cropped_image)
+                color_state = self.get_color(cropped_image)
                 # rospy.logdebug(color_state)
 
-        return color_state, masked_image
+        # return color_state, masked_image
+        return color_state
 
     def get_color(self, image):
         """Identify current color of Traffic Light
@@ -174,6 +176,7 @@ class TLClassifier(object):
         :returns: ID of traffic light color
 
         """
+        # TODO: HSV implementation for better detection
         # hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
         # create NumPy arrays from the boundaries
         # lower = np.expand_dims(np.expand_dims(np.asarray(self.LOWER_RED, dtype=np.uint8), 0), 0)
@@ -193,9 +196,11 @@ class TLClassifier(object):
         masked_image = cv2.bitwise_and(image, image, mask = mask)
 
         if np.sum(mask) < 20:
-            return TrafficLight.UNKNOWN, masked_image
+            # return TrafficLight.UNKNOWN, masked_image
+            return TrafficLight.UNKNOWN
         else:
-            return TrafficLight.RED, masked_image
+            # return TrafficLight.RED, masked_image
+            return TrafficLight.RED
 
     # def uniform_image(self, image):
         # return all(value == image[0] for value in image)

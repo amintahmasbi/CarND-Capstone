@@ -17,7 +17,8 @@ STATE_COUNT_THRESHOLD = 3
 
 class TLDetector(object):
     def __init__(self):
-        rospy.init_node('tl_detector', log_level = rospy.DEBUG)
+        # rospy.init_node('tl_detector', log_level = rospy.DEBUG)
+        rospy.init_node('tl_detector')
 
         self.pose = None
         self.waypoints = None
@@ -44,7 +45,7 @@ class TLDetector(object):
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
-        self.traffic_light_image_pub = rospy.Publisher('/traffic_light_image', Image, queue_size=1)
+        # self.traffic_light_image_pub = rospy.Publisher('/traffic_light_image', Image, queue_size=1)
 
         self.bridge = CvBridge()
         self.listener = tf.TransformListener()
@@ -153,9 +154,10 @@ class TLDetector(object):
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
 
         #Get classification
-        light_state, output = self.light_classifier.get_classification(cv_image)
-        image_msg = self.bridge.cv2_to_imgmsg(output, 'rgb8')
-        self.traffic_light_image_pub.publish(image_msg)
+        # light_state, output = self.light_classifier.get_classification(cv_image)
+        light_state = self.light_classifier.get_classification(cv_image)
+        # image_msg = self.bridge.cv2_to_imgmsg(output, 'rgb8')
+        # self.traffic_light_image_pub.publish(image_msg)
         return light_state
 
     def process_traffic_lights(self):
@@ -178,7 +180,7 @@ class TLDetector(object):
             closest_light = 100000
             camera_sensing_range = 200
             light_index = -1
-            #TODO find the closest visible traffic light (if one exists)
+            #Find the closest visible traffic light (if one exists)
             for idx, light_item in enumerate(self.lights):
 
                 light_position = self.get_closest_waypoint(light_item.pose.pose)
