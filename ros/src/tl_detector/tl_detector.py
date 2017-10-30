@@ -24,6 +24,8 @@ class TLDetector(object):
         self.camera_image = None
         self.lights = []
 
+        self.light_classifier = None # compensate for late initialization
+
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
@@ -42,14 +44,17 @@ class TLDetector(object):
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
+        self.traffic_light_image_pub = rospy.Publisher('/traffic_light_image', Image, queue_size=1)
+
         self.bridge = CvBridge()
-        self.light_classifier = TLClassifier()
         self.listener = tf.TransformListener()
 
         self.state = TrafficLight.UNKNOWN
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
+
+        self.light_classifier = TLClassifier()
 
         rospy.spin()
 
@@ -142,10 +147,16 @@ class TLDetector(object):
             self.prev_light_loc = None
             return False
 
+        if (not self.light_classifier):
+            return False
+
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
 
         #Get classification
-        return self.light_classifier.get_classification(cv_image)
+        light_state, output = self.light_classifier.get_classification(cv_image)
+        image_msg = self.bridge.cv2_to_imgmsg(output, 'rgb8')
+        self.traffic_light_image_pub.publish(image_msg)
+        return light_state
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -192,7 +203,7 @@ class TLDetector(object):
                 stop_line.position.z = 0
                 line_position = self.get_closest_waypoint(stop_line)
                 # rospy.logdebug("Next light : %d --> %d ", car_position, line_position)
-                rospy.logdebug("Light status: %d ", int(state))
+                # rospy.logdebug("Light status: %d ", int(state))
                 return line_position, state
 
         return -1, TrafficLight.UNKNOWN
