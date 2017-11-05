@@ -12,7 +12,7 @@ import math
 import cv2
 import yaml
 
-STATE_COUNT_THRESHOLD = 3
+STATE_COUNT_THRESHOLD = 1 # 3
 
 
 class TLDetector(object):
@@ -155,7 +155,10 @@ class TLDetector(object):
 
         #Get classification
         # light_state, output = self.light_classifier.get_classification(cv_image)
+
         light_state = self.light_classifier.get_classification(cv_image)
+        # light_state = light.state
+
         # image_msg = self.bridge.cv2_to_imgmsg(output, 'rgb8')
         # self.traffic_light_image_pub.publish(image_msg)
         return light_state
@@ -214,6 +217,7 @@ class TLDetector(object):
         dist = 0
         dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
         for i in range(wp1, wp2+1):
+            # TODO: list index out of range for looping around track
             dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
             wp1 = i
         return dist
