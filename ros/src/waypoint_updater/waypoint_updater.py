@@ -97,7 +97,7 @@ class WaypointUpdater(object):
         """Prepare and publish final waypoints
 
         """
-        if self.base_waypoints is not None:
+        if (self.pose) and (self.velocity) and (self.base_waypoints is not None):
             base_waypoints_len = len(self.base_waypoints)
             next_waypoint_idx = self.find_next_waypoint()
             final_waypoints = []
