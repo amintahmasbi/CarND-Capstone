@@ -50,12 +50,10 @@ class WaypointUpdater(object):
         self.pose = None
         self.base_waypoints = None
         self.velocity = None
-        # self.previous_velocity = None
         self.dt = None
         self.is_accelerating = False
         self.is_stopping = False
         self.traffic_waypoint = -1
-        # self.last_traffic_waypoint = -1
         self.seq_num = 0
         rospy.spin()
 
@@ -112,8 +110,6 @@ class WaypointUpdater(object):
             elif  (self.is_stopping) and (not self.is_accelerating) and (self.traffic_waypoint == -1):
                 # Traffic light turned green or vehicle passed traffic light
                 final_waypoints = self.prepare_to_move(next_waypoint_idx, final_waypoints)
-
-            # else: # No traffic light or no change in light
 
             rospy.logdebug(final_waypoints[0].twist.twist.linear.x)
             msg = Lane()
@@ -197,7 +193,6 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         # Callback for /traffic_waypoint message.
-        # self.last_traffic_waypoint = self.traffic_waypoint
         self.traffic_waypoint = msg.data
         # if self.traffic_waypoint != -1:
             # rospy.logdebug(self.traffic_waypoint)
@@ -210,12 +205,7 @@ class WaypointUpdater(object):
     def velocity_cb(self, msg):
         """Callback for /current_velocity
         """
-        # self.previous_velocity = self.velocity
         self.velocity = msg
-        # if self.dt:
-            # self.dt = self.velocity.header.stamp - self.previous_velocity.header.stamp
-        # else:
-            # self.dt = 1 # first received msg from velocity topic
 
     def get_waypoint_velocity(self, waypoint):
         return waypoint.twist.twist.linear.x
