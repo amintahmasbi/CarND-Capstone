@@ -111,7 +111,7 @@ class WaypointUpdater(object):
                 # Traffic light turned green or vehicle passed traffic light
                 final_waypoints = self.prepare_to_move(next_waypoint_idx, final_waypoints)
 
-            rospy.logdebug(final_waypoints[0].twist.twist.linear.x)
+            # rospy.logdebug(final_waypoints[0].twist.twist.linear.x)
             msg = Lane()
             msg.header.stamp = rospy.Time.now()
             msg.waypoints = final_waypoints
@@ -132,7 +132,7 @@ class WaypointUpdater(object):
         traffic_waypoint = self.traffic_waypoint
         distance_to_light = self.distance(self.base_waypoints, next_waypoint, traffic_waypoint)
 
-        if traffic_waypoint < next_waypoint or traffic_waypoint-next_waypoint > LOOKAHEAD_WPS/2:
+        if traffic_waypoint < next_waypoint or traffic_waypoint-next_waypoint > LOOKAHEAD_WPS:
             self.is_stopping = False
             return waypoints
         else:

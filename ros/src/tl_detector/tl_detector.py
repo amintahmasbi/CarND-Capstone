@@ -12,7 +12,7 @@ import math
 import cv2
 import yaml
 
-STATE_COUNT_THRESHOLD = 1 # 3
+STATE_COUNT_THRESHOLD = 3
 
 
 class TLDetector(object):
@@ -178,7 +178,7 @@ class TLDetector(object):
         stop_line_positions = self.config['stop_line_positions']
         if self.waypoints:
             if(self.pose):
-                car_position = self.get_closest_waypoint(self.pose.pose)
+                car_position = self.get_closest_waypoint(self.pose.pose)%len(self.waypoints.waypoints)
 
             closest_light = 100000
             camera_sensing_range = 200
@@ -186,7 +186,7 @@ class TLDetector(object):
             #Find the closest visible traffic light (if one exists)
             for idx, light_item in enumerate(self.lights):
 
-                light_position = self.get_closest_waypoint(light_item.pose.pose)
+                light_position = self.get_closest_waypoint(light_item.pose.pose)%len(self.waypoints.waypoints)
                 if car_position <= light_position:
                     dist = self.distance(self.waypoints.waypoints, car_position, light_position)
                 else:
@@ -217,7 +217,6 @@ class TLDetector(object):
         dist = 0
         dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
         for i in range(wp1, wp2+1):
-            # TODO: list index out of range for looping around track
             dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
             wp1 = i
         return dist

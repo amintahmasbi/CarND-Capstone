@@ -35,8 +35,8 @@
                                         <relative_minimum>-1000</relative_minimum>
                                         <type>0</type>
                                     </scale>
-                                    <topic>/current_velocity</topic>
-                                    <type>geometry_msgs/TwistStamped</type>
+                                    <topic>/current_pose</topic>
+                                    <type>geometry_msgs/PoseStamped</type>
                                 </x_axis>
                                 <y_axis>
                                     <field>twist/linear/x</field>
