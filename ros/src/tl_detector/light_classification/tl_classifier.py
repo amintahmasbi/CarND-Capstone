@@ -52,25 +52,37 @@ class TLClassifier(object):
         # What model to download.
         MODEL_NAME = self.SSD_V2_GRAPH_FILE
         MODEL_FILE = MODEL_NAME + '.tar.gz'
+        CLASS_DIR = os.path.join(os.getcwd(),'light_classification')
         DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
         GRAPH_FILE = 'frozen_inference_graph.pb'
         # Path to frozen detection graph. This is the actual model that is used for the object detection.
-        PATH_TO_CKPT = os.path.join('.','light_classification', MODEL_NAME, GRAPH_FILE)
-
+        PATH_TO_CKPT = os.path.join(CLASS_DIR, MODEL_NAME, GRAPH_FILE)
+        PATH_TO_ZIP_FILE = os.path.join(CLASS_DIR, MODEL_FILE)
         # List of the strings that is used to add correct label for each box.
         # PATH_TO_LABELS = os.path.join('.','light_classification','labels', 'mscoco_label_map.pbtxt')
 
-        if not os.path.exists(PATH_TO_CKPT):
+        if not os.path.isfile(PATH_TO_ZIP_FILE):
             rospy.logwarn('Downloading the frozen graph from tensorflow website... (~500 MBs)')
             opener = urllib.request.URLopener()
             opener.retrieve(DOWNLOAD_BASE + MODEL_FILE, MODEL_FILE)
-            tar_file = tarfile.open(MODEL_FILE)
+            tar_file = tarfile.open(PATH_TO_ZIP_FILE)
             for file in tar_file.getmembers():
                 file_name = os.path.basename(file.name)
                 if GRAPH_FILE in file_name:
-                    tar_file.extract(file, os.getcwd())
-        # else :
-            # rospy.logwarn('Found graph file')
+                    tar_file.extract(file, CLASS_DIR)
+            rospy.logwarn('DOwnload and Extraction Finished')
+
+
+        elif not os.path.exists(PATH_TO_CKPT):
+            rospy.logwarn('Extracting the frozen graph ... (~100 MBs)')
+            tar_file = tarfile.open(PATH_TO_ZIP_FILE)
+            for file in tar_file.getmembers():
+                file_name = os.path.basename(file.name)
+                if GRAPH_FILE in file_name:
+                    tar_file.extract(file, CLASS_DIR)
+            rospy.logwarn('Extraction Finished')
+        else :
+            rospy.logwarn('Found graph file')
         return PATH_TO_CKPT
 
 
