@@ -8,7 +8,7 @@ from geometry_msgs.msg import PoseStamped, TwistStamped
 from styx_msgs.msg import Lane, Waypoint
 from std_msgs.msg import Int32
 import tf
-
+import copy
 import sys
 import math
 
@@ -28,8 +28,6 @@ as well as to verify your TL classifier.
 '''
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
-MAX_DECEL = 1.0
-MAX_ACCEL = 1.0
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -47,15 +45,20 @@ class WaypointUpdater(object):
         # Add other member variables you need below
         max_velocity_kmh = rospy.get_param('/waypoint_loader/velocity', 40)
         self.max_velocity = max_velocity_kmh * 1000. / 3600.
+        self.MAX_ACCEL = rospy.get_param('/dbw_node/accel_limit', 1.0)
+        self.MAX_DECEL = rospy.get_param('/dbw_node/decel_limit',-1.0)
+
         self.pose = None
         self.base_waypoints = None
         self.velocity = None
-        self.dt = None
-        self.is_accelerating = False
-        self.is_stopping = False
         self.traffic_waypoint = -1
-        self.seq_num = 0
-        rospy.spin()
+        self.loop()
+
+    def loop(self):
+        rate = rospy.Rate(50)
+        while not rospy.is_shutdown():
+            rate.sleep()
+            self.update_final_waypoints()
 
     def find_closest_waypoint(self):
         """TODO: Docstring for find_closest_waypoint.
@@ -102,21 +105,22 @@ class WaypointUpdater(object):
             next_waypoint_idx = self.find_next_waypoint()
             final_waypoints = []
             for index in range(next_waypoint_idx, next_waypoint_idx + LOOKAHEAD_WPS):
-                final_waypoints.append(self.base_waypoints[index%base_waypoints_len])
+                wp = copy.deepcopy(self.base_waypoints[index%base_waypoints_len])  # Ensures the original object is not modified
+                final_waypoints.append(wp)
             # update final_waypoints if there is a traffic light
-            if (not self.is_stopping) and (self.traffic_waypoint != -1): # Traffic light turned red
+            if (self.traffic_waypoint != -1): # Traffic light turned red
                 final_waypoints = self.prepare_to_stop(next_waypoint_idx, final_waypoints)
 
-            elif  (self.is_stopping) and (not self.is_accelerating) and (self.traffic_waypoint == -1):
-                # Traffic light turned green or vehicle passed traffic light
+            elif (self.traffic_waypoint == -1) and  (self.get_waypoint_velocity(self.base_waypoints[next_waypoint_idx]) - self.velocity.twist.linear.x >= 1.0) :
+                # # Traffic light turned green or vehicle passed traffic light
                 final_waypoints = self.prepare_to_move(next_waypoint_idx, final_waypoints)
 
-            # rospy.logdebug(final_waypoints[0].twist.twist.linear.x)
+            rospy.logdebug(final_waypoints[0].twist.twist.linear.x)
             msg = Lane()
             msg.header.stamp = rospy.Time.now()
             msg.waypoints = final_waypoints
 
-            #rospy.logdebug("next waypoint idx: %d", next_waypoint_idx)
+            # rospy.logdebug("next waypoint idx: %d", next_waypoint_idx)
             self.final_waypoints_pub.publish(msg)
         pass
 
@@ -132,30 +136,27 @@ class WaypointUpdater(object):
         traffic_waypoint = self.traffic_waypoint
         distance_to_light = self.distance(self.base_waypoints, next_waypoint, traffic_waypoint)
 
-        if traffic_waypoint < next_waypoint or traffic_waypoint-next_waypoint > LOOKAHEAD_WPS:
-            self.is_stopping = False
+        if traffic_waypoint <= next_waypoint or traffic_waypoint-next_waypoint > LOOKAHEAD_WPS:
             return waypoints
         else:
-            self.is_stopping = True
-            self.is_accelerating = False
 
-            if math.fabs(self.velocity.twist.linear.x) >= 1.:
-
-                for index in range(traffic_waypoint-next_waypoint):
+            if math.fabs(self.velocity.twist.linear.x) > 1.:
+                for index in range(LOOKAHEAD_WPS):
 
                     index2light = self.distance(self.base_waypoints, next_waypoint + index, traffic_waypoint)
                     # NOTE: time2stop could also be derived based on the Jerk requirements of the project
-                    if index2light >= 5.:
-                        velocity_of_index = self.get_waypoint_velocity(self.base_waypoints[next_waypoint+index]) * ( float(index2light) / distance_to_light )
+                    if index > LOOKAHEAD_WPS-10: # Buffer for last few waypoints ~5.0 meter
+                        velocity_of_index = 0.
+                        # velocity_of_index = self.get_waypoint_velocity(self.base_waypoints[next_waypoint+index]) * ( float(index2light) / distance_to_light )
                     else:
-                        velocity_of_index = 0.
-
-                    if velocity_of_index < 1.:
-                        velocity_of_index = 0.
-                    self.set_waypoint_velocity(waypoints, index, velocity_of_index)
+                        velocity_of_index = max(0,0,
+                                self.max_velocity *
+                                (1-math.exp((index2light - 5.0) / 80.0*self.MAX_DECEL)))
+                    # if velocity_of_index < 1.:
+                    self.set_waypoint_velocity(waypoints, index,  min(velocity_of_index, self.max_velocity))
 
             else:
-                for index in range(traffic_waypoint-next_waypoint):
+                for index in range(LOOKAHEAD_WPS):
                     self.set_waypoint_velocity(waypoints, index, 0.)
 
             return waypoints
@@ -168,22 +169,23 @@ class WaypointUpdater(object):
         :returns: TODO
 
         """
-        if (self.velocity.twist.linear.x) < self.max_velocity:
+        # if (self.velocity.twist.linear.x) < self.max_velocity:
 
-            self.is_stopping = False
-            self.is_accelerating = True
+            # self.is_stopping = False
+            # self.is_accelerating = True
 
-            for index in range(LOOKAHEAD_WPS):
-                distance2index = self.distance(self.base_waypoints, next_waypoint, next_waypoint+index)
-                velocity_of_index = 1. + 2. * MAX_ACCEL * float(distance2index)
-                self.set_waypoint_velocity(waypoints, index, min(velocity_of_index, self.max_velocity))
+        for index in range(LOOKAHEAD_WPS):
+            # distance2index = self.distance(self.base_waypoints, next_waypoint, next_waypoint+index)
+            velocity_of_index = max(1.0, math.sqrt(self.MAX_ACCEL*(index+1)) + self.velocity.twist.linear.x)
+
+            self.set_waypoint_velocity(waypoints, index, min(velocity_of_index, self.max_velocity))
 
         return waypoints
 
     def pose_cb(self, msg):
         self.seq_num = msg.header.seq
         self.pose = msg.pose
-        self.update_final_waypoints()
+        # self.update_final_waypoints()
         pass
 
     def waypoints_cb(self, waypoints):

@@ -180,36 +180,36 @@ class TLDetector(object):
             if(self.pose):
                 car_position = self.get_closest_waypoint(self.pose.pose)%len(self.waypoints.waypoints)
 
-            closest_light = 100000
-            camera_sensing_range = 200
-            light_index = -1
-            #Find the closest visible traffic light (if one exists)
-            for idx, light_item in enumerate(self.lights):
+                closest_light = 100000
+                camera_sensing_range = 200
+                light_index = -1
+                #Find the closest visible traffic light (if one exists)
+                for idx, light_item in enumerate(self.lights):
 
-                light_position = self.get_closest_waypoint(light_item.pose.pose)%len(self.waypoints.waypoints)
-                if car_position <= light_position:
-                    dist = self.distance(self.waypoints.waypoints, car_position, light_position)
-                else:
-                    dist = self.distance(self.waypoints.waypoints, light_position, car_position)
-                    dist = len(self.waypoints.waypoints) - dist
+                    light_position = self.get_closest_waypoint(light_item.pose.pose)%len(self.waypoints.waypoints)
+                    if car_position <= light_position:
+                        dist = self.distance(self.waypoints.waypoints, car_position, light_position)
+                    else:
+                        dist = self.distance(self.waypoints.waypoints, light_position, car_position)
+                        dist = len(self.waypoints.waypoints) - dist
 
-                # rospy.logdebug("next light distance: %d | %d | %d", car_position, light_position, int(dist))
-                if dist <= camera_sensing_range:
-                    closest_light = dist
-                    light = light_item
-                    light_index = idx
+                    # rospy.logdebug("next light distance: %d | %d | %d", car_position, light_position, int(dist))
+                    if dist <= camera_sensing_range:
+                        closest_light = dist
+                        light = light_item
+                        light_index = idx
 
-            if light:
-                state = self.get_light_state(light)
+                if light:
+                    state = self.get_light_state(light)
 
-                stop_line = Pose()
-                stop_line.position.x = stop_line_positions[light_index][0]
-                stop_line.position.y = stop_line_positions[light_index][1]
-                stop_line.position.z = 0
-                line_position = self.get_closest_waypoint(stop_line)
-                # rospy.logdebug("Next light : %d --> %d ", car_position, line_position)
-                # rospy.logdebug("Light status: %d ", int(state))
-                return line_position, state
+                    stop_line = Pose()
+                    stop_line.position.x = stop_line_positions[light_index][0]
+                    stop_line.position.y = stop_line_positions[light_index][1]
+                    stop_line.position.z = 0
+                    line_position = self.get_closest_waypoint(stop_line)
+                    # rospy.logdebug("Next light : %d --> %d ", car_position, line_position)
+                    # rospy.logdebug("Light status: %d ", int(state))
+                    return line_position, state
 
         return -1, TrafficLight.UNKNOWN
 

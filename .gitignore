@@ -6,7 +6,7 @@ devel
 profile.tmp
 
 # temp files
-*.~
+*~
 .*.swp 
 
 # bag files
